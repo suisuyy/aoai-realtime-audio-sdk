@@ -6,6 +6,12 @@ import { Recorder } from "./recorder.ts";
 import "./style.css";
 import { LowLevelRTClient, SessionUpdateMessage } from "rt-client";
 
+// Add these constants at the top of the file
+const STORAGE_KEY_MESSAGE_UI = 'messageUI';
+const STORAGE_KEY_ENDPOINT = 'endpoint';
+const STORAGE_KEY_API_KEY = 'apiKey';
+const STORAGE_KEY_DEPLOYMENT_OR_MODEL = 'deploymentOrModel';
+
 let realtimeStreaming: LowLevelRTClient;
 let audioRecorder: Recorder;
 let audioPlayer: Player;
@@ -30,17 +36,39 @@ async function start_realtime(endpoint: string, apiKey: string, deploymentOrMode
   await Promise.all([resetAudio(true), handleRealtimeMessages()]);
 }
 
+
+// interface SessionUpdateParams {
+//   model?: string;
+//   modalities?: Modality[];
+//   voice?:  "alloy" | "shimmer" | "echo";
+//   instructions?: string;
+//   input_audio_format?: AudioFormat;
+//   output_audio_format?: AudioFormat;
+//   input_audio_transcription?: InputAudioTranscription;
+//   turn_detection?: TurnDetection;
+//   tools?: ToolsDefinition;
+//   tool_choice?: ToolChoice;
+//   temperature?: number;
+//   max_response_output_tokens?: number;
+// }
 function createConfigMessage() : SessionUpdateMessage {
 
   let configMessage : SessionUpdateMessage = {
     type: "session.update",
     session: {
+      modalities:["audio", "text" ],
+      max_response_output_tokens: 200,
       turn_detection: {
         type: "server_vad",
+        threshold: 0.1,
+        prefix_padding_ms: 500,
+        silence_duration_ms: 3000,
       },
-      input_audio_transcription: {
-        model: "whisper-1"
-      }
+      // input_audio_transcription: {
+      //   // model: "whisper-1",
+      //   model: "gpt4o",
+        
+      // }
     }
   };
 
@@ -230,6 +258,22 @@ function appendToTextBlock(text: string) {
   textElements[textElements.length - 1].textContent += text;
 }
 
+// Add these functions to save and load data from localStorage
+function saveToLocalStorage() {
+  localStorage.setItem(STORAGE_KEY_MESSAGE_UI, formSessionInstructionsField.value);
+  localStorage.setItem(STORAGE_KEY_ENDPOINT, formEndpointField.value);
+  localStorage.setItem(STORAGE_KEY_API_KEY, formApiKeyField.value);
+  localStorage.setItem(STORAGE_KEY_DEPLOYMENT_OR_MODEL, formDeploymentOrModelField.value);
+}
+
+function loadFromLocalStorage() {
+  formSessionInstructionsField.value = localStorage.getItem(STORAGE_KEY_MESSAGE_UI) || '';
+  formEndpointField.value = localStorage.getItem(STORAGE_KEY_ENDPOINT) || '';
+  formApiKeyField.value = localStorage.getItem(STORAGE_KEY_API_KEY) || '';
+  formDeploymentOrModelField.value = localStorage.getItem(STORAGE_KEY_DEPLOYMENT_OR_MODEL) || '';
+}
+
+// Modify the event listeners
 formStartButton.addEventListener("click", async () => {
   setFormInputState(InputState.Working);
 
@@ -252,6 +296,8 @@ formStartButton.addEventListener("click", async () => {
     return;
   }
 
+  saveToLocalStorage(); // Save data before starting
+
   try {
     start_realtime(endpoint, key, deploymentOrModel);
   } catch (error) {
@@ -259,6 +305,15 @@ formStartButton.addEventListener("click", async () => {
     setFormInputState(InputState.ReadyToStart);
   }
 });
+
+// Add event listeners for input changes
+formSessionInstructionsField.addEventListener('input', saveToLocalStorage);
+formEndpointField.addEventListener('input', saveToLocalStorage);
+formApiKeyField.addEventListener('input', saveToLocalStorage);
+formDeploymentOrModelField.addEventListener('input', saveToLocalStorage);
+
+// Load saved data when the page opens
+loadFromLocalStorage();
 
 formStopButton.addEventListener("click", async () => {
   setFormInputState(InputState.Working);
