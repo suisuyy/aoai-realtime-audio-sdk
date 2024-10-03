@@ -5,6 +5,7 @@ let audioRecorder: Recorder;
 let audioPlayer: Player;
 let recordingActive: boolean = false;
 let buffer: Uint8Array = new Uint8Array();
+let recordedAudioChunks: Int16Array[] = [];
 
 export function combineArray(newData: Uint8Array) {
   const newBuffer = new Uint8Array(buffer.length + newData.length);
@@ -23,6 +24,8 @@ export function processAudioRecordingBuffer(data: Buffer, sendAudioBuffer: (base
     const base64 = btoa(regularArray);
     if (recordingActive) {
       sendAudioBuffer(base64);
+      // Store the recorded audio data
+      recordedAudioChunks.push(new Int16Array(toSend.buffer));
     }
   }
 }
@@ -117,4 +120,12 @@ function floatTo16BitPCM(output: DataView, offset: number, input: Float32Array) 
     const s = Math.max(-1, Math.min(1, input[i]));
     output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
   }
+}
+
+export function getRecordedAudioBlob(): Blob {
+  return saveAudioBlob(recordedAudioChunks);
+}
+
+export function clearRecordedAudio() {
+  recordedAudioChunks = [];
 }

@@ -37,7 +37,7 @@ export function getSystemMessage(): string {
 }
 
 export function getTemperature(): number {
-  return parseFloat((document.querySelector<HTMLInputElement>("#temperature")?.value || "0"));
+  return parseFloat((document.querySelector<HTMLInputElement>("#temperature")?.value || "0.6"));
 }
 
 export function getVoice(): Voice {

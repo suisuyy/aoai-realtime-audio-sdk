@@ -4,7 +4,7 @@
 import { LowLevelRTClient } from "rt-client";
 import { createConfigMessage, isAzureOpenAI, guessIfIsAzureOpenAI } from "./config";
 import { InputState, setFormInputState, makeNewTextBlock, appendToTextBlock } from "./ui";
-import { resetAudio, playAudio, clearAudio, saveAudioBlob, createAudioElement } from "./audio";
+import { resetAudio, playAudio, clearAudio, saveAudioBlob, createAudioElement, getRecordedAudioBlob, clearRecordedAudio } from "./audio";
 import { saveToLocalStorage, loadFromLocalStorage } from "./storage";
 import "./style.css";
 
@@ -74,6 +74,22 @@ async function handleRealtimeMessages() {
         makeNewTextBlock();
         clearAudio();
         break;
+      case "input_audio_buffer.committed":
+        console.log("HandleRealtimeMessages: input audio buffer committed");
+        const recordedAudioBlob = getRecordedAudioBlob();
+        const audioElement = createAudioElement(recordedAudioBlob);
+        
+        // Append the audio element to the latest input speech block
+        if (latestInputSpeechBlock) {
+          latestInputSpeechBlock.appendChild(audioElement);
+        } else {
+          document.querySelector<HTMLDivElement>("#received-text-container")?.appendChild(audioElement);
+        }
+        
+        // Clear the recorded audio for the next recording
+        clearRecordedAudio();
+        break;
+
       case "conversation.item.input_audio_transcription.completed":
         if (latestInputSpeechBlock) {
           latestInputSpeechBlock.textContent += " User: " + message.transcript;
