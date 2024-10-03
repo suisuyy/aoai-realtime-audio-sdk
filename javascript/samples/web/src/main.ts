@@ -1,20 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import { Player } from "./player.ts";
-import { Recorder } from "./recorder.ts";
+import { LowLevelRTClient } from "rt-client";
+import { createConfigMessage, isAzureOpenAI, guessIfIsAzureOpenAI } from "./config";
+import { InputState, setFormInputState, makeNewTextBlock, appendToTextBlock } from "./ui";
+import { resetAudio, playAudio, clearAudio, saveAudioBlob, createAudioElement } from "./audio";
+import { saveToLocalStorage, loadFromLocalStorage } from "./storage";
 import "./style.css";
-import { LowLevelRTClient, SessionUpdateMessage } from "rt-client";
-
-// Add these constants at the top of the file
-const STORAGE_KEY_MESSAGE_UI = 'messageUI';
-const STORAGE_KEY_ENDPOINT = 'endpoint';
-const STORAGE_KEY_API_KEY = 'apiKey';
-const STORAGE_KEY_DEPLOYMENT_OR_MODEL = 'deploymentOrModel';
 
 let realtimeStreaming: LowLevelRTClient;
-let audioRecorder: Recorder;
-let audioPlayer: Player;
+let latestInputSpeechBlock: Element;
 
 async function start_realtime(endpoint: string, apiKey: string, deploymentOrModel: string) {
   if (isAzureOpenAI()) {
@@ -33,63 +28,19 @@ async function start_realtime(endpoint: string, apiKey: string, deploymentOrMode
     return;
   }
   console.log("sent");
-  await Promise.all([resetAudio(true), handleRealtimeMessages()]);
+  await Promise.all([resetAudio(true, sendAudioBuffer), handleRealtimeMessages()]);
 }
 
-
-// interface SessionUpdateParams {
-//   model?: string;
-//   modalities?: Modality[];
-//   voice?:  "alloy" | "shimmer" | "echo";
-//   instructions?: string;
-//   input_audio_format?: AudioFormat;
-//   output_audio_format?: AudioFormat;
-//   input_audio_transcription?: InputAudioTranscription;
-//   turn_detection?: TurnDetection;
-//   tools?: ToolsDefinition;
-//   tool_choice?: ToolChoice;
-//   temperature?: number;
-//   max_response_output_tokens?: number;
-// }
-function createConfigMessage() : SessionUpdateMessage {
-
-  let configMessage : SessionUpdateMessage = {
-    type: "session.update",
-    session: {
-      modalities:["audio", "text" ],
-      max_response_output_tokens: 200,
-      turn_detection: {
-        type: "server_vad",
-        threshold: 0.1,
-        prefix_padding_ms: 500,
-        silence_duration_ms: 3000,
-      },
-      // input_audio_transcription: {
-      //   // model: "whisper-1",
-      //   model: "gpt4o",
-        
-      // }
-    }
-  };
-
-  const systemMessage = getSystemMessage();
-  const temperature = getTemperature();
-  const voice = getVoice();
-
-  if (systemMessage) {
-    configMessage.session.instructions = systemMessage;
-  }
-  if (!isNaN(temperature)) {
-    configMessage.session.temperature = temperature;
-  }
-  if (voice) {
-    configMessage.session.voice = voice;
-  }
-
-  return configMessage;
+function sendAudioBuffer(base64: string) {
+  realtimeStreaming.send({
+    type: "input_audio_buffer.append",
+    audio: base64,
+  });
 }
 
 async function handleRealtimeMessages() {
+  let currentAudioChunks: Int16Array[] = [];
+
   for await (const message of realtimeStreaming.messages()) {
     let consoleLog = "" + message.type;
 
@@ -106,180 +57,55 @@ async function handleRealtimeMessages() {
         const binary = atob(message.delta);
         const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
         const pcmData = new Int16Array(bytes.buffer);
-        audioPlayer.play(pcmData);
+        currentAudioChunks.push(pcmData);
+        playAudio(pcmData);
         break;
 
+      case "response.created":
+        console.log("response created");
+        currentAudioChunks = []; // Reset audio chunks for new response
+        break;
       case "input_audio_buffer.speech_started":
         makeNewTextBlock("<< Speech Started >>");
-        let textElements = formReceivedTextContainer.children;
-        latestInputSpeechBlock = textElements[textElements.length - 1];
+        let textElements = document.querySelector<HTMLDivElement>("#received-text-container")?.children;
+        if (textElements) {
+          latestInputSpeechBlock = textElements[textElements.length - 1];
+        }
         makeNewTextBlock();
-        audioPlayer.clear();
+        clearAudio();
         break;
       case "conversation.item.input_audio_transcription.completed":
-        latestInputSpeechBlock.textContent += " User: " + message.transcript;
+        if (latestInputSpeechBlock) {
+          latestInputSpeechBlock.textContent += " User: " + message.transcript;
+        }
         break;
       case "response.done":
-        formReceivedTextContainer.appendChild(document.createElement("hr"));
+        console.log("response done");
+        if (currentAudioChunks.length > 0) {
+          const audioBlob = saveAudioBlob(currentAudioChunks);
+          const audioElement = createAudioElement(audioBlob);
+          document.querySelector<HTMLDivElement>("#received-text-container")?.appendChild(audioElement);
+        }
+        document.querySelector<HTMLDivElement>("#received-text-container")?.appendChild(document.createElement("hr"));
         break;
       default:
         consoleLog = JSON.stringify(message, null, 2);
-        break
+        break;
     }
     if (consoleLog) {
       console.log(consoleLog);
     }
   }
-  resetAudio(false);
+  resetAudio(false, sendAudioBuffer);
 }
 
-/**
- * Basic audio handling
- */
-
-let recordingActive: boolean = false;
-let buffer: Uint8Array = new Uint8Array();
-
-function combineArray(newData: Uint8Array) {
-  const newBuffer = new Uint8Array(buffer.length + newData.length);
-  newBuffer.set(buffer);
-  newBuffer.set(newData, buffer.length);
-  buffer = newBuffer;
-}
-
-function processAudioRecordingBuffer(data: Buffer) {
-  const uint8Array = new Uint8Array(data);
-  combineArray(uint8Array);
-  if (buffer.length >= 4800) {
-    const toSend = new Uint8Array(buffer.slice(0, 4800));
-    buffer = new Uint8Array(buffer.slice(4800));
-    const regularArray = String.fromCharCode(...toSend);
-    const base64 = btoa(regularArray);
-    if (recordingActive) {
-      realtimeStreaming.send({
-        type: "input_audio_buffer.append",
-        audio: base64,
-      });
-    }
-  }
-
-}
-
-async function resetAudio(startRecording: boolean) {
-  recordingActive = false;
-  if (audioRecorder) {
-    audioRecorder.stop();
-  }
-  if (audioPlayer) {
-    audioPlayer.clear();
-  }
-  audioRecorder = new Recorder(processAudioRecordingBuffer);
-  audioPlayer = new Player();
-  audioPlayer.init(24000);
-  if (startRecording) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioRecorder.start(stream);
-    recordingActive = true;
-  }
-}
-
-/**
- * UI and controls
- */
-
-const formReceivedTextContainer = document.querySelector<HTMLDivElement>(
-  "#received-text-container",
-)!;
-const formStartButton =
-  document.querySelector<HTMLButtonElement>("#start-recording")!;
-const formStopButton =
-  document.querySelector<HTMLButtonElement>("#stop-recording")!;
-const formEndpointField =
-  document.querySelector<HTMLInputElement>("#endpoint")!;
-const formAzureToggle =
-  document.querySelector<HTMLInputElement>("#azure-toggle")!;
-const formApiKeyField = document.querySelector<HTMLInputElement>("#api-key")!;
-const formDeploymentOrModelField = document.querySelector<HTMLInputElement>("#deployment-or-model")!;
-const formSessionInstructionsField =
-  document.querySelector<HTMLTextAreaElement>("#session-instructions")!;
-const formTemperatureField = document.querySelector<HTMLInputElement>("#temperature")!;
-const formVoiceSelection = document.querySelector<HTMLInputElement>("#voice")!;
-
-let latestInputSpeechBlock: Element;
-
-enum InputState {
-  Working,
-  ReadyToStart,
-  ReadyToStop,
-}
-
-function isAzureOpenAI(): boolean {
-  return formAzureToggle.checked;
-}
-
-function guessIfIsAzureOpenAI() {
-  const endpoint = (formEndpointField.value || "").trim();
-  formAzureToggle.checked = endpoint.indexOf('azure') > -1;
-}
-
-function setFormInputState(state: InputState) {
-  formEndpointField.disabled = state != InputState.ReadyToStart;
-  formApiKeyField.disabled = state != InputState.ReadyToStart;
-  formDeploymentOrModelField.disabled = state != InputState.ReadyToStart;
-  formStartButton.disabled = state != InputState.ReadyToStart;
-  formStopButton.disabled = state != InputState.ReadyToStop;
-  formSessionInstructionsField.disabled = state != InputState.ReadyToStart;
-  formAzureToggle.disabled = state != InputState.ReadyToStart;
-}
-
-function getSystemMessage(): string {
-  return formSessionInstructionsField.value || "";
-}
-
-function getTemperature(): number {
-  return parseFloat(formTemperatureField.value);
-}
-
-function getVoice(): "alloy" | "echo" | "shimmer" {
-  return formVoiceSelection.value as "alloy" | "echo" | "shimmer";
-}
-
-function makeNewTextBlock(text: string = "") {
-  let newElement = document.createElement("p");
-  newElement.textContent = text;
-  formReceivedTextContainer.appendChild(newElement);
-}
-
-function appendToTextBlock(text: string) {
-  let textElements = formReceivedTextContainer.children;
-  if (textElements.length == 0) {
-    makeNewTextBlock();
-  }
-  textElements[textElements.length - 1].textContent += text;
-}
-
-// Add these functions to save and load data from localStorage
-function saveToLocalStorage() {
-  localStorage.setItem(STORAGE_KEY_MESSAGE_UI, formSessionInstructionsField.value);
-  localStorage.setItem(STORAGE_KEY_ENDPOINT, formEndpointField.value);
-  localStorage.setItem(STORAGE_KEY_API_KEY, formApiKeyField.value);
-  localStorage.setItem(STORAGE_KEY_DEPLOYMENT_OR_MODEL, formDeploymentOrModelField.value);
-}
-
-function loadFromLocalStorage() {
-  formSessionInstructionsField.value = localStorage.getItem(STORAGE_KEY_MESSAGE_UI) || '';
-  formEndpointField.value = localStorage.getItem(STORAGE_KEY_ENDPOINT) || '';
-  formApiKeyField.value = localStorage.getItem(STORAGE_KEY_API_KEY) || '';
-  formDeploymentOrModelField.value = localStorage.getItem(STORAGE_KEY_DEPLOYMENT_OR_MODEL) || '';
-}
-
-// Modify the event listeners
-formStartButton.addEventListener("click", async () => {
+// Event Listeners
+document.querySelector<HTMLButtonElement>("#start-recording")?.addEventListener("click", async () => {
   setFormInputState(InputState.Working);
 
-  const endpoint = formEndpointField.value.trim();
-  const key = formApiKeyField.value.trim();
-  const deploymentOrModel = formDeploymentOrModelField.value.trim();
+  const endpoint = (document.querySelector<HTMLInputElement>("#endpoint")?.value || "").trim();
+  const key = (document.querySelector<HTMLInputElement>("#api-key")?.value || "").trim();
+  const deploymentOrModel = (document.querySelector<HTMLInputElement>("#deployment-or-model")?.value || "").trim();
 
   if (isAzureOpenAI() && !endpoint && !deploymentOrModel) {
     alert("Endpoint and Deployment are required for Azure OpenAI");
@@ -296,7 +122,7 @@ formStartButton.addEventListener("click", async () => {
     return;
   }
 
-  saveToLocalStorage(); // Save data before starting
+  saveToLocalStorage();
 
   try {
     start_realtime(endpoint, key, deploymentOrModel);
@@ -306,23 +132,23 @@ formStartButton.addEventListener("click", async () => {
   }
 });
 
-// Add event listeners for input changes
-formSessionInstructionsField.addEventListener('input', saveToLocalStorage);
-formEndpointField.addEventListener('input', saveToLocalStorage);
-formApiKeyField.addEventListener('input', saveToLocalStorage);
-formDeploymentOrModelField.addEventListener('input', saveToLocalStorage);
-
-// Load saved data when the page opens
-loadFromLocalStorage();
-
-formStopButton.addEventListener("click", async () => {
+document.querySelector<HTMLButtonElement>("#stop-recording")?.addEventListener("click", async () => {
   setFormInputState(InputState.Working);
-  resetAudio(false);
+  resetAudio(false, sendAudioBuffer);
   realtimeStreaming.close();
   setFormInputState(InputState.ReadyToStart);
 });
 
-formEndpointField.addEventListener('change', async () => {
+document.querySelector<HTMLInputElement>("#endpoint")?.addEventListener('change', async () => {
   guessIfIsAzureOpenAI();
 });
+
+// Add event listeners for input changes
+document.querySelector<HTMLTextAreaElement>("#session-instructions")?.addEventListener('input', saveToLocalStorage);
+document.querySelector<HTMLInputElement>("#endpoint")?.addEventListener('input', saveToLocalStorage);
+document.querySelector<HTMLInputElement>("#api-key")?.addEventListener('input', saveToLocalStorage);
+document.querySelector<HTMLInputElement>("#deployment-or-model")?.addEventListener('input', saveToLocalStorage);
+
+// Load saved data when the page opens
+loadFromLocalStorage();
 guessIfIsAzureOpenAI();
