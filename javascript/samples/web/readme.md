@@ -30,3 +30,32 @@
 This sample uses a custom modification of OpenAI's JavaScript SDK (https://github.com/openai/openai-node) to provide a new `realtime` client. As noted in the parent readme, this is an unofficial modification that's subject to change and does not represent any final surface details in the SDK.
 
 The primary file demonstrating `/realtime` use is [src/main.ts](./src/main.ts); the first few functions demonstrate connecting to `/realtime` using the client, sending an inference configuration message, and then processing the send/receive of messages on the connection.
+
+## some explanation
+config model in config.ts:
+export function createConfigMessage(options: { voice?: string }): SessionUpdateMessage {
+  let configMessage: SessionUpdateMessage = {
+    type: "session.update",
+    session: {
+      voice: options.voice || "shimmer", // Ensure this uses the passed voice
+      modalities: ["audio", "text"],
+      max_response_output_tokens: 400,
+      turn_detection: {
+        type: "server_vad",
+        threshold: 0.9,
+        prefix_padding_ms: 1000,
+        silence_duration_ms: 2000,
+      },
+    }
+  };
+
+available voices: 'amuch', 'dan', 'elan', 'marilyn', 'breeze', 'cove', 'ember', 'jupiter', 'alloy', 'echo', and 'shimmer'.
+
+i still dont know how to use the threshold , prefix_padding_ms should be more than 1000ms for better result, config silence_duration_ms for yourself.
+
+seems the the server will filter sounds strictly, it only deal with human voice, i have tried make some sounds, it has no response.
+
+
+
+
+

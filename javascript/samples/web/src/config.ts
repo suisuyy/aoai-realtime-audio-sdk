@@ -1,16 +1,17 @@
 import { SessionUpdateMessage, Voice } from "rt-client";
 
-export function createConfigMessage(): SessionUpdateMessage {
+export function createConfigMessage(options: { voice?: string }): SessionUpdateMessage {
   let configMessage: SessionUpdateMessage = {
     type: "session.update",
     session: {
+     voice: options.voice || "shimmer", // Ensure this uses the passed voice
       modalities: ["audio", "text"],
-      max_response_output_tokens: 200,
+      max_response_output_tokens: 400,
       turn_detection: {
         type: "server_vad",
-        threshold: 0.1,
-        prefix_padding_ms: 500,
-        silence_duration_ms: 3000,
+        threshold: 0.5,
+        prefix_padding_ms: 1000,
+        silence_duration_ms: 2000,
       },
     }
   };
@@ -25,9 +26,7 @@ export function createConfigMessage(): SessionUpdateMessage {
   if (!isNaN(temperature)) {
     configMessage.session.temperature = temperature;
   }
-  if (voice) {
-    configMessage.session.voice = voice;
-  }
+  
 
   return configMessage;
 }
@@ -41,7 +40,7 @@ export function getTemperature(): number {
 }
 
 export function getVoice(): Voice {
-  return (document.querySelector<HTMLSelectElement>("#voice")?.value as Voice) || "alloy";
+  return (document.querySelector<HTMLSelectElement>("#voice-select")?.value as Voice) || "alloy";
 }
 
 export function isAzureOpenAI(): boolean {

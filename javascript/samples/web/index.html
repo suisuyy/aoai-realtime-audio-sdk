@@ -3,61 +3,94 @@
 // Licensed under the MIT license.
 -->
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Realtime API with openai-node SDK</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtime Streaming Demo</title>
 </head>
-
 <body>
-  <div id="app">
-    <form>
-      <div class="container">
-        <div id="received-text-container"></div>
-        <div class="controls">
-          <div class="input-group">
-            <label for="endpoint">Endpoint</label>
-            <input id="endpoint" type="text" placeholder="Enter resource/endpoint URL" />
-            <div class="toggle-group">
-              <label for="azure-toggle">Azure OpenAI</label>
-              <input id="azure-toggle" type="checkbox" checked />
-            </div>
-              <label for="api-key">API Key</label>
-            <input id="api-key" type="password" placeholder="Enter API key" />
-            <label for="deployment-or-model">Deployment</label>
-            <input id="deployment-or-model" type="text" placeholder="Enter deployment/model, e.g. gpt-4o-realtime-preview-2024-10-01" />
-          </div>
-          <div class="input-group">
-          <div class="button-group">
-            <button id="start-recording" type="button">Record</button>
-            <button id="stop-recording" type="button" disabled="true">Stop</button>
-          </div>
-          <div class="input-group">
-            <label for="session-instructions">System Message</label>
-            <textarea id="session-instructions" placeholder="Optional instructions for the session, e.g. 'You talk like a pirate.'" rows="4"></textarea>
-          </div>
-          <div class="input-group">
-            <label for="temperature">Temperature</label>
-            <input id="temperature" type="number" min="0.6" max="1.2" step="0.05" placeholder="0.6-1.2 (default 0.8)"/>
-          </div>
-          <div class="input-group">
-            <label for="voice">Voice</label-for>
-              <select id="voice">
-                <option></option>
-                <option>alloy</option>
-                <option>echo</option>
-                <option>shimmer</option>
-              </select>
-          </div>
+    <div id="app">
+        <h1>Realtime Streaming Demo</h1>
+        
+        <div class="tab-container">
+            <button class="tab-button active" data-tab="chat">Chat</button>
+            <button class="tab-button" data-tab="settings">Settings</button>
         </div>
-      </div>
-    </form>
-  </div>
-  <script type="module" src="/src/main.ts"></script>
-</body>
 
+        <div id="chat-tab" class="tab-content active">
+            <div id="controls">
+                <button id="one-time-talk" touch-action="none">One-Time Talk</button>
+                <button id="start-recording">Record</button>
+                <button id="stop-recording" disabled>Stop</button>
+            </div>
+            <div id="received-text-container"></div>
+        </div>
+
+        <div id="settings-tab" class="tab-content">
+            <div id="config">
+                <div>
+                    <label for="azure-toggle">Use Azure OpenAI:</label>
+                    <input type="checkbox" id="azure-toggle" name="azure-toggle">
+                </div>
+                
+                <div>
+                    <label for="endpoint">Endpoint:</label>
+                    <input type="text" id="endpoint" name="endpoint">
+                </div>
+                
+                <div>
+                    <label for="api-key">API Key:</label>
+                    <input type="password" id="api-key" name="api-key">
+                </div>
+                
+                <div>
+                    <label for="deployment-or-model">Deployment or Model:</label>
+                    <input type="text" id="deployment-or-model" name="deployment-or-model">
+                </div>
+                
+                <div>
+                    <label for="temperature">Temperature:</label>
+                    <input type="number" id="temperature" name="temperature" min="0" max="2" step="0.1" value="0.6">
+                </div>
+                
+                <div>
+
+                  <!--available voice:'amuch', 'dan', 'elan', 'marilyn', 'breeze', 'cove', 'ember', 'jupiter', 'alloy', 'echo', and 'shimmer'.-->
+                    <label for="voice-select">Voice:</label>
+                    <select id="voice-select" name="voice-select">
+                        <option value="marilyn">Marilyn</option>
+                        <option value="breeze">Breeze</option>
+                        <option value="cove">Cove</option>
+                        <option value="ember">Ember</option>
+                        <option value="jupiter">Jupiter</option>
+                        <option value="elan">Elan</option>
+                        <option value="dan">Dan</option>
+                        <option value="amuch">Amuch</option>
+                        <option value="alloy">Alloy</option>
+                        <option value="echo">Echo</option>
+                        <option value="shimmer">Shimmer</option>
+                        <option value="nova">Nova</option>
+                        <option value="onyx">Onyx</option>
+                        <option value="fable">Fable</option>
+                        
+
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="session-instructions">System Message:</label>
+                    <textarea id="session-instructions" name="session-instructions" rows="4"></textarea>
+                </div>
+                
+                <div>
+                    <label for="auto-stop-time">Auto-stop after (seconds):</label>
+                    <input type="number" id="auto-stop-time" name="auto-stop-time" min="5" max="300" step="1" value="30">
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
 </html>

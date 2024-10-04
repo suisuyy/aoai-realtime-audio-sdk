@@ -38,14 +38,20 @@ export async function resetAudio(startRecording: boolean, sendAudioBuffer: (base
   if (audioPlayer) {
     audioPlayer.clear();
   }
+  // Reset buffer and recordedAudioChunks
+  buffer = new Uint8Array();
+  recordedAudioChunks = [];
+  
   audioRecorder = new Recorder((data) => processAudioRecordingBuffer(data, sendAudioBuffer));
   audioPlayer = new Player();
-  await audioPlayer.init(24000);
-  if (startRecording) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioRecorder.start(stream);
-    recordingActive = true;
-  }
+  audioPlayer.init(24000).then(() => {
+    if (startRecording) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        audioRecorder.start(stream);
+        recordingActive = true;
+      });
+    }
+  });
 }
 
 export function playAudio(pcmData: Int16Array) {
@@ -122,10 +128,27 @@ function floatTo16BitPCM(output: DataView, offset: number, input: Float32Array) 
   }
 }
 
-export function getRecordedAudioBlob(): Blob {
-  return saveAudioBlob(recordedAudioChunks);
+export function getRecordedAudioBase64(): string | null {
+  if (recordedAudioChunks.length === 0) return null;
+  
+  const combinedBuffer = new Int16Array(recordedAudioChunks.reduce((acc, chunk) => acc + chunk.length, 0));
+  let offset = 0;
+  for (const chunk of recordedAudioChunks) {
+    combinedBuffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  
+  const uint8Array = new Uint8Array(combinedBuffer.buffer);
+  const regularArray = String.fromCharCode(...uint8Array);
+  return btoa(regularArray);
 }
 
 export function clearRecordedAudio() {
+  console.log("Clearing recorded audio chunks");
   recordedAudioChunks = [];
+  buffer = new Uint8Array();
+}
+
+export function getRecordedAudioBlob(): Blob {
+  return saveAudioBlob(recordedAudioChunks);
 }
