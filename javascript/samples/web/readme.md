@@ -7,8 +7,9 @@
 2. Environment that can run a localhost web server
 
 ## Using the sample
+it only support chrome based browser currently.
 
-1. Navigate to this folder
+1. cd javascript\samples and run download-pkg.sh(if you are using window, run download-pkg.ps1), then cd ./web
 2. Run `npm install` to download a small number of dependency packages (see `package.json`)
 3. Run `npm run dev` to start the web server, navigating any firewall permissions prompts
 4. Use any of the provided URIs from the console output, e.g. `http://localhost:5173/`, in a browser

@@ -6,7 +6,7 @@ export function createConfigMessage(options: { voice?: string }): SessionUpdateM
     session: {
      voice: options.voice || "shimmer", // Ensure this uses the passed voice
       modalities: ["audio", "text"],
-      max_response_output_tokens: 400,
+      max_response_output_tokens: 600,
       turn_detection: {
         type: "server_vad",
         threshold: 0.5,

@@ -47,6 +47,26 @@ function sendAudioBuffer(base64: string) {
   });
 }
 
+
+
+function sendText(text: string) {
+
+ 
+  realtimeStreaming.send({
+    type: "conversation.item.create",
+    item: {
+      type: 'message',
+      role: 'user',
+      content: [
+        {
+          type: 'input_text',
+          text: text
+        }
+      ]
+    }
+  });
+}
+
 async function handleRealtimeMessages() {
   let currentAudioChunks: Int16Array[] = [];
 
@@ -399,5 +419,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const voiceSelect = document.querySelector<HTMLSelectElement>("#voice-select");
   if (voiceSelect) {
     voiceSelect.addEventListener("change", saveVoiceSelection);
+  }
+
+  // Add event listener for sending text
+  const sendTextButton = document.querySelector<HTMLButtonElement>("#send-text");
+  const textInput = document.querySelector<HTMLInputElement>("#text-input");
+  if (sendTextButton && textInput) {
+    sendTextButton.addEventListener("click", () => {
+      const text = textInput.value.trim();
+      if (text) {
+        sendText(text);
+        textInput.value = ""; // Clear the input field after sending
+      }
+    });
   }
 });
