@@ -132,8 +132,10 @@ body {
 }
 
 #received-text-container {
-  @apply bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow mb-4 flex-grow overflow-y-auto;
-  transition: background-color 10s ease; /* Faster transition for background color */
+  @apply bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow mb-4 overflow-y-auto;
+  flex: 1;
+  min-height: 0; /* This is important for flexbox to respect the container's height */
+  transition: background-color 10s ease;
 }
 
 #received-text-container.recording {
@@ -142,7 +144,7 @@ body {
 
 @keyframes pulse-bg {
   0% {
-    background-color: #A7F3D0; /* Light green */
+    background-color: #86EFAA; /* Light green */
   }
   100% {
     background-color: #86EFAC; /* Slightly darker green */
@@ -173,7 +175,7 @@ body {
 }
 
 #text-input-container {
-  @apply flex space-x-2;
+  @apply flex space-x-2 mt-auto;
 }
 
 #config {
@@ -235,4 +237,13 @@ body {
 .dark #endpoint, .dark #api-key, .dark #deployment-or-model, .dark #session-instructions, .dark #auto-stop-time {
   background-color: #d9ffed !important; /* Darker green background for dark mode */
   color: #16191c !important; /* Light text color for better visibility in dark mode */
+}
+
+#chat-tab {
+  @apply flex flex-col;
+  height: calc(100vh - 120px); /* Adjust this value as needed */
+}
+
+#controls {
+  @apply mb-4 flex space-x-2;
 }

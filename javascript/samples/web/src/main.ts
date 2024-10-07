@@ -50,17 +50,23 @@ function setupDarkMode() {
 // Add this function at the beginning of the file
 function setupTabSwitching() {
   const tabButtons = document.querySelectorAll('.tab-button');
-  const tabContents = document.querySelectorAll('.tab-content');
+  const chatTab = document.getElementById('chat-tab');
+  const settingsTab = document.getElementById('settings-tab');
 
   tabButtons.forEach(button => {
     button.addEventListener('click', () => {
       const tabName = button.getAttribute('data-tab');
       
       tabButtons.forEach(btn => btn.classList.remove('active'));
-      tabContents.forEach(content => content.classList.add('hidden'));
-      
       button.classList.add('active');
-      document.getElementById(`${tabName}-tab`)?.classList.remove('hidden');
+
+      if (tabName === 'chat') {
+        chatTab.style.display="flex";
+        settingsTab.style.display="none";
+      } else if (tabName === 'settings') {
+        chatTab.style.display="none";
+        settingsTab.style.display="block";
+      }
     });
   });
 }
