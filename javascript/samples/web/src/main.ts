@@ -60,13 +60,16 @@ function setupTabSwitching() {
       tabButtons.forEach(btn => btn.classList.remove('active'));
       button.classList.add('active');
 
-      if (tabName === 'chat') {
-        chatTab.style.display="flex";
-        settingsTab.style.display="none";
-      } else if (tabName === 'settings') {
-        chatTab.style.display="none";
-        settingsTab.style.display="block";
+      if(chatTab && settingsTab){
+        if (tabName === 'chat') {
+          chatTab.style.display="flex";
+          settingsTab.style.display="none";
+        } else if (tabName === 'settings') {
+          chatTab.style.display="none";
+          settingsTab.style.display="block";
+        }
       }
+      
     });
   });
 }
