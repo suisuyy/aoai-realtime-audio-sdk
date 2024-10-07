@@ -1,0 +1,139 @@
+<!--
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
+-->
+
+<!DOCTYPE html>
+<html lang="en" class="light h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Chat App</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+  <script type="module" crossorigin src="/assets/index-B10B3d75.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C3fZIOf6.css">
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-200 h-full flex flex-col">
+    <div id="app" class="container mx-auto p-4 max-w-4xl flex-grow flex flex-col">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">Voice Chat App</h1>
+            <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700">
+                <i class="fas fa-moon dark:hidden"></i>
+                <i class="fas fa-sun hidden dark:inline"></i>
+            </button>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-grow flex flex-col">
+            <div class="flex border-b border-gray-200 dark:border-gray-700">
+                <button class="tab-button active flex-1 py-3" data-tab="chat">Chat</button>
+                <button class="tab-button flex-1 py-3" data-tab="settings">Settings</button>
+            </div>
+
+            <div id="chat-tab" class="tab-content p-4 flex-grow flex flex-col">
+                <div id="controls" class="mb-4 flex space-x-2">
+                    <button id="start-recording" class="btn btn-success" title="Call">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    <button id="stop-recording" class="btn btn-danger" disabled>Stop</button>
+                </div>
+                <div id="received-text-container" class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow mb-4 flex-grow overflow-y-auto"></div>
+                <div id="text-input-container" class="flex space-x-2">
+                    <button id="one-time-talk" class="btn btn-primary" title="One-Time Talk">🎙️</button>
+                    <input type="text" id="text-input" class="input input-bordered flex-grow" placeholder="Type your message here...">
+                    <button id="send-text" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="settings-tab" class="tab-content hidden p-4 flex-grow overflow-y-auto">
+                <div id="config" class="space-y-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold">General Settings</h3>
+                        </div>
+                        <div class="p-4 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <label for="azure-toggle" class="text-sm font-medium">Use Azure OpenAI</label>
+                                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" id="azure-toggle" name="azure-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                                    <label for="azure-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                                </div>
+                            </div>
+                            <div class="space-y-2">
+                                <label for="endpoint" class="text-sm font-medium">Endpoint</label>
+                                <input type="text" id="endpoint" name="endpoint" class="input input-bordered w-full">
+                            </div>
+                            <div class="space-y-2">
+                                <label for="api-key" class="text-sm font-medium">API Key</label>
+                                <input type="password" id="api-key" name="api-key" class="input input-bordered w-full">
+                            </div>
+                            <div class="space-y-2">
+                                <label for="deployment-or-model" class="text-sm font-medium">Deployment or Model</label>
+                                <input type="text" id="deployment-or-model" name="deployment-or-model" class="input input-bordered w-full">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold">Voice Settings</h3>
+                        </div>
+                        <div class="p-4 space-y-4">
+                            <div class="space-y-2">
+                                <label for="voice-select" class="text-sm font-medium">Voice</label>
+                                <select id="voice-select" name="voice-select" class="select select-bordered w-full">
+                                    <option value="marilyn">Marilyn</option>
+                                    <option value="breeze">Breeze</option>
+                                    <option value="cove">Cove</option>
+                                    <option value="ember">Ember</option>
+                                    <option value="jupiter">Jupiter</option>
+                                    <option value="elan">Elan</option>
+                                    <option value="dan">Dan</option>
+                                    <option value="amuch">Amuch</option>
+                                    <option value="alloy">Alloy</option>
+                                    <option value="echo">Echo</option>
+                                    <option value="shimmer">Shimmer</option>
+                                    <option value="nova">Nova</option>
+                                    <option value="onyx">Onyx</option>
+                                    <option value="fable">Fable</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label for="temperature" class="text-sm font-medium">Temperature</label>
+                                <input type="range" id="temperature" name="temperature" min="0.6" max="1.2" step="0.1" value="0.6" class="range">
+                                <div class="w-full flex justify-between text-xs px-2">
+                                    <span>0.6</span>
+                                    <span>0.9</span>
+                                    <span>1.2</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+                        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold">Other Settings</h3>
+                        </div>
+                        <div class="p-4 space-y-4">
+                            <div class="space-y-2">
+                                <label for="session-instructions" class="text-sm font-medium">System Message</label>
+                                <textarea id="session-instructions" name="session-instructions" rows="4" class="textarea textarea-bordered w-full">you are powerful voice assistant, you can make long pleasant melody and sing various songs, you can make nice and real  and long sound effect.
+
+you can generate long(more than 10s), continuous melodies or extend them.
+
+you can imitate different people voice</textarea>
+                            </div>
+                            <div class="space-y-2">
+                                <label for="auto-stop-time" class="text-sm font-medium">Auto-stop after (seconds)</label>
+                                <input type="number" id="auto-stop-time" name="auto-stop-time" min="5" max="300" step="1" value="30" class="input input-bordered w-full">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
