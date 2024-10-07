@@ -12,13 +12,18 @@
   "devDependencies": {
     "@types/audioworklet": "^0.0.57",
     "@types/node": "^22.7.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
     "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.13",
     "typescript": "^5.2.2",
     "vite": "^5.4.8"
   },
   "dependencies": {
     "@azure/identity": "^4.4.1",
-    "rt-client": "file:../rt-client-0.4.6.tgz"
+    "@tailwindcss/forms": "^0.5.9",
+    "rt-client": "file:../rt-client-0.4.6.tgz",
+    "shadcn": "^2.1.0"
   },
   "files": [
     "dist"

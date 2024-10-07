@@ -2,9 +2,9 @@
 // Licensed under the MIT license.
 
 import { LowLevelRTClient } from "rt-client";
-import { createConfigMessage, isAzureOpenAI, guessIfIsAzureOpenAI } from "./config";
+import { createConfigMessage, isAzureOpenAI, guessIfIsAzureOpenAI, getSystemMessage } from "./config";
 import { InputState, setFormInputState, makeNewTextBlock, appendToTextBlock } from "./ui";
-import { resetAudio, playAudio, clearAudio, saveAudioBlob, createAudioElement, getRecordedAudioBlob, clearRecordedAudio, getRecordedAudioBase64 } from "./audio";
+import { resetAudio, playAudio, saveAudioBlob, createAudioElement, getRecordedAudioBlob, clearRecordedAudio, getRecordedAudioBase64 } from "./audio";
 import { saveToLocalStorage, loadFromLocalStorage } from "./storage";
 import "./style.css";
 
@@ -15,6 +15,55 @@ let lastMutationTime: number = 0;
 let autoStopTimer: NodeJS.Timeout | null = null;
 let isOneTimeTalking = false;
 let isWaitingForResponse = false;
+
+function updateRecordingState(recording: boolean) {
+  const receivedTextContainer = document.querySelector<HTMLDivElement>("#received-text-container");
+  if (receivedTextContainer) {
+    if (recording) {
+      receivedTextContainer.classList.add('recording');
+    } else {
+      receivedTextContainer.classList.remove('recording');
+    }
+  }
+}
+
+// Add this function at the beginning of the file
+function setupDarkMode() {
+  const themeToggle = document.getElementById('theme-toggle');
+  const html = document.documentElement;
+
+  themeToggle?.addEventListener('click', () => {
+    html.classList.toggle('dark');
+    localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+  });
+
+  // Check for saved theme preference or prefer-color-scheme
+  const savedTheme = localStorage.getItem('theme');
+
+  if (savedTheme === 'dark') {
+    html.classList.add('dark');
+  } else if (savedTheme === 'light' || !savedTheme) {
+    html.classList.remove('dark');
+  }
+}
+
+// Add this function at the beginning of the file
+function setupTabSwitching() {
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabName = button.getAttribute('data-tab');
+      
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.add('hidden'));
+      
+      button.classList.add('active');
+      document.getElementById(`${tabName}-tab`)?.classList.remove('hidden');
+    });
+  });
+}
 
 async function start_realtime(endpoint: string, apiKey: string, deploymentOrModel: string) {
   if (isAzureOpenAI()) {
@@ -36,6 +85,7 @@ async function start_realtime(endpoint: string, apiKey: string, deploymentOrMode
     return;
   }
   console.log("sent");
+  updateRecordingState(true);
   await Promise.all([resetAudio(true, sendAudioBuffer), handleRealtimeMessages()]);
   startMutationObserver(); // Start observing mutations after initializing
 }
@@ -210,24 +260,14 @@ function checkForInactivity() {
   }
 }
 
-// Tab switching functionality
-const tabButtons = document.querySelectorAll('.tab-button');
-const tabContents = document.querySelectorAll('.tab-content');
-
-tabButtons.forEach(button => {
-  button.addEventListener('click', () => {
-    const tabName = button.getAttribute('data-tab');
-    
-    tabButtons.forEach(btn => btn.classList.remove('active'));
-    tabContents.forEach(content => content.classList.remove('active'));
-    
-    button.classList.add('active');
-    document.getElementById(`${tabName}-tab`)?.classList.add('active');
-  });
-});
-
 // Event Listeners
 document.querySelector<HTMLButtonElement>("#start-recording")?.addEventListener("click", async () => {
+  const startButton = document.querySelector<HTMLButtonElement>("#start-recording");
+  if (startButton) {
+    startButton.classList.add('loading');
+    startButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  }
+
   setFormInputState(InputState.Working);
 
   const endpoint = (document.querySelector<HTMLInputElement>("#endpoint")?.value || "").trim();
@@ -236,35 +276,57 @@ document.querySelector<HTMLButtonElement>("#start-recording")?.addEventListener(
 
   if (isAzureOpenAI() && !endpoint && !deploymentOrModel) {
     alert("Endpoint and Deployment are required for Azure OpenAI");
+    resetStartButton(startButton);
     return;
   }
 
   if (!isAzureOpenAI() && !deploymentOrModel) {
     alert("Model is required for OpenAI");
+    resetStartButton(startButton);
     return;
   }
 
   if (!key) {
     alert("API Key is required");
+    resetStartButton(startButton);
     return;
   }
 
   saveToLocalStorage();
 
   try {
-    start_realtime(endpoint, key, deploymentOrModel);
-    startAutoStopTimer(); // Start the auto-stop timer when recording starts
+    await start_realtime(endpoint, key, deploymentOrModel);
+    startAutoStopTimer();
+    if (startButton) {
+      startButton.classList.remove('loading');
+      startButton.innerHTML = '<i class="fas fa-phone"></i>';
+    }
   } catch (error) {
     console.log(error);
     setFormInputState(InputState.ReadyToStart);
+    resetStartButton(startButton);
   }
 });
 
+function resetStartButton(button: HTMLButtonElement | null) {
+  if (button) {
+    button.classList.remove('loading');
+    button.innerHTML = '<i class="fas fa-phone"></i>';
+  }
+}
+
 document.querySelector<HTMLButtonElement>("#stop-recording")?.addEventListener("click", async () => {
+  const stopButton = document.querySelector<HTMLButtonElement>("#stop-recording");
+  if (stopButton) {
+    stopButton.classList.add('loading');
+    stopButton.textContent = 'Stopping...';
+  }
+
   setFormInputState(InputState.Working);
   resetAudio(false, sendAudioBuffer);
   realtimeStreaming.close();
   setFormInputState(InputState.ReadyToStart);
+  updateRecordingState(false);
 
   // Clear the mutation observer timer
   if (mutationTimer) {
@@ -276,6 +338,22 @@ document.querySelector<HTMLButtonElement>("#stop-recording")?.addEventListener("
   if (autoStopTimer) {
     clearTimeout(autoStopTimer);
     autoStopTimer = null;
+  }
+
+  if (stopButton) {
+    stopButton.classList.remove('loading');
+    stopButton.textContent = 'Stop';
+  }
+
+  const startButton = document.querySelector<HTMLButtonElement>("#start-recording");
+  if (startButton) {
+    startButton.innerHTML = '<i class="fas fa-phone"></i>';
+  }
+
+  // Ensure the recording class is removed
+  const receivedTextContainer = document.querySelector<HTMLDivElement>("#received-text-container");
+  if (receivedTextContainer) {
+    receivedTextContainer.classList.remove('recording');
   }
 });
 
@@ -363,6 +441,7 @@ async function stopOneTimeTalk() {
   if (!isOneTimeTalking) return;
 
   isWaitingForResponse = true;
+  updateRecordingState(false);
   
   // Stop recording but don't reset the audio yet
 
@@ -412,9 +491,21 @@ function loadVoiceSelection() {
   }
 }
 
-// Call loadVoiceSelection when the page loads
+function loadSystemMessage() {
+  const textarea = document.querySelector<HTMLTextAreaElement>("#session-instructions");
+  if (textarea) {
+    const systemMessage = getSystemMessage();
+    textarea.value = systemMessage;
+  }
+}
+
+// Add this at the end of the file, just before the last closing brace
 document.addEventListener("DOMContentLoaded", () => {
   loadVoiceSelection();
+  setupTabSwitching(); // Add this line to set up tab switching
+  setupDarkMode(); // Add this line to set up dark mode
+  loadSystemMessage(); // Add this line to load the system message
+  
   // Add event listener to save voice selection on change
   const voiceSelect = document.querySelector<HTMLSelectElement>("#voice-select");
   if (voiceSelect) {

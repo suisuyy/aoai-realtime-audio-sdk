@@ -4,8 +4,9 @@ export function createConfigMessage(options: { voice?: string }): SessionUpdateM
   let configMessage: SessionUpdateMessage = {
     type: "session.update",
     session: {
-     voice: options.voice || "shimmer", // Ensure this uses the passed voice
+      voice: options.voice as Voice || "breeze", // Cast the voice to Voice type
       modalities: ["audio", "text"],
+      temperature: getTemperature(),
       max_response_output_tokens: 600,
       turn_detection: {
         type: "server_vad",
@@ -17,22 +18,32 @@ export function createConfigMessage(options: { voice?: string }): SessionUpdateM
   };
 
   const systemMessage = getSystemMessage();
-  const temperature = getTemperature();
-  const voice = getVoice();
 
   if (systemMessage) {
     configMessage.session.instructions = systemMessage;
   }
-  if (!isNaN(temperature)) {
-    configMessage.session.temperature = temperature;
-  }
-  
 
   return configMessage;
 }
 
 export function getSystemMessage(): string {
-  return (document.querySelector<HTMLTextAreaElement>("#session-instructions")?.value || "");
+  const defaultMessage = `you are powerful voice assistant, you can make long pleasant melody and sing various songs, you can make nice and real  and long sound effect.
+
+you can generate long(more than 10s), continuous melodies or extend them.
+
+you can imitate different people voice`;
+
+  const textarea = document.querySelector<HTMLTextAreaElement>("#session-instructions");
+  const userMessage = textarea?.value.trim() || "";
+
+  if (userMessage === "") {
+    if (textarea) {
+      textarea.value = defaultMessage;
+    }
+    return defaultMessage;
+  }
+
+  return userMessage;
 }
 
 export function getTemperature(): number {
